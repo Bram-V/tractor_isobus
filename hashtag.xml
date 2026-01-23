@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ISO11783_TaskData VersionMajor="3" VersionMinor="0" DataTransferOrigin="1">
+<DVC A="DVC-1" B="HASHTAG" C="0.0.11" D="A00C8000AFE00002" E="124" F="312E302E305448" G="FF555500506E65">
+  <DET A="DET-1" B="1" C="1" D="WUR Device" E="0" F="0">
+    <DOR A="2"/> <!--  Actual Workstate  -->
+    <DOR A="4"/> <!--  Total time  -->
+  <DOR A="999"/> <!-- Hashtag DDI #1 -->
+  <DOR A="1001"/> <!--  Default set req  -->
+  </DET>
+
+  <!--  DORs refer to the numbers here  -->
+  <!--  DPD  -->
+  <DPD A="2" B="008D" C="1" D="8" E="Actual Work State"/>
+  <DPD A="4" B="0077" C="3" D="16" E="Total Time" F="1083"/>
+
+  <DPD A="999" B="FF98" C="3" D="9" E="Hashtag DDI #1" />
+  <DPD A="1001" B="DFFF" C="0" D="31" E="Default set req"/>
+
+  <!--  DPT  -->
+
+  <!--  DVP  -->
+  <DVP A="1084" B="0" C="1.000000" D="0" E="mm"/>
+  <DVP A="1083" B="0" C="1.000000" D="1" E="minutes"/>
+</DVC>
+</ISO11783_TaskData>
