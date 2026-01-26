@@ -129,7 +129,7 @@ class SectionControlImplementSimulator {
 
         constexpr std::array<std::uint8_t, 7> localizationData = {'e', 'n', 0x50, 0x00, 0x55, 0x55, 0xFF};
 
-        retVal &= poolToPopulate->add_device("Sprayerr", "1.9.0", "WAZZZAAAAAA", "SP1.9", localizationData,
+        retVal &= poolToPopulate->add_device("Sprayerr", "1.11.0", "WAZZZAAAAAA", "SP1.11", localizationData,
                                              std::vector<std::uint8_t>(), clientName.get_full_name());
         retVal &= poolToPopulate->add_device_element(
             "Sprayer", elementCounter, 0, isobus::task_controller_object::DeviceElementObject::Type::Device,
@@ -150,7 +150,7 @@ class SectionControlImplementSimulator {
                 static_cast<std::uint8_t>(
                     isobus::task_controller_object::DeviceProcessDataObject::PropertiesBit::Settable),
             static_cast<std::uint8_t>(
-                isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::Total),
+                isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
             static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagParameter));
         retVal &= poolToPopulate->add_device_process_data(
             "Request Default PD", static_cast<std::uint16_t>(isobus::DataDescriptionIndex::RequestDefaultProcessData),
@@ -631,8 +631,10 @@ int main(int argc, char **argv) {
                 break;
             }
         }
-        if (counter % 1000 == 0) {
+        if (counter % 2 == 0) {
             auth_status.store(counter);
+            std::cout << "Changing value\n";
+            TestTCClient->on_value_changed_trigger(1, 65432);
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
