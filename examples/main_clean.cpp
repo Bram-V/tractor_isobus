@@ -62,56 +62,16 @@
 
 #include <atomic>
 #include <csignal>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <thread>
-
-#include <echo/echo.hpp>
-#include <echo/format.hpp>
-#include <echo/widget.hpp>
 
 // Signal handler for clean shutdown (Ctrl+C)
 static std::atomic_bool running = true;
 // Current work state: 0 = not working, 1 = working
 static std::atomic<std::int32_t> current_work_state = 0;
-// Auto mode: true = TC controls sections, false = manual control
-static std::atomic_bool is_auto_mode = true;
-// Section control state: 0 = manual, 1 = auto
-static std::atomic<std::int32_t> section_control_state = 1;
-// Hashtag auth result: 0 = auth failed/invalid, 1 = auth success/valid
-static std::atomic<std::int32_t> hashtag_auth_result = 0;
-// Data sending frequency in milliseconds (how often to report/update)
-static std::atomic<std::uint32_t> send_frequency_ms = 1000;
 
 void signal_handler(int) { running = false; }
-
-static constexpr std::uint16_t DDI_AUTH_RESULT = 65432;
-
-bool export_ddop_to_xml(std::shared_ptr<isobus::DeviceDescriptorObjectPool> ddop, const std::string &filename) {
-    if (!ddop) {
-        std::cerr << "Error: DDOP is null\n";
-        return false;
-    }
-
-    std::string xmlContent;
-    if (!ddop->generate_task_data_iso_xml(xmlContent)) {
-        std::cerr << "Error: Failed to generate ISOXML from DDOP\n";
-        return false;
-    }
-
-    std::ofstream outFile(filename);
-    if (!outFile.is_open()) {
-        std::cerr << "Error: Could not open file " << filename << " for writing\n";
-        return false;
-    }
-
-    outFile << xmlContent;
-    outFile.close();
-
-    std::cout << "DDOP exported successfully to " << filename << "\n";
-    return true;
-}
 
 /*******************************************************************************
  * DDOP OBJECT IDs
@@ -159,12 +119,9 @@ enum class DDOPObjectIDs : std::uint16_t {
     ConnectorYOffset = 5,      // Left/right position from reference
     ImplementWorkingWidth = 8, // Active working width in mm
 
-    HashtagAuthResult = 10, // Auth result from hashtag sensor
-
     // Presentations (how to display values)
-    AreaPresentation = 100,  // For area values (m²)
-    WidthPresentation = 101, // For width/distance (mm)
-    RawPresentation = 102,   // For raw values (no formatting)
+    AreaPresentation = 100, // For area values (m²)
+    WidthPresentation = 101 // For width/distance (mm)
 };
 
 /*******************************************************************************
@@ -239,8 +196,8 @@ bool create_simple_ddop(std::shared_ptr<isobus::DeviceDescriptorObjectPool> ddop
     //   - localizationLabel: (array defined above)
     //   - extendedStructure: (empty - used for binary DDOP data)
     //   - clientIsoName:     Our 64-bit ISO NAME
-    success &= ddop->add_device("HASHTAG", "1.0.11", "001", "SMP1.0", localizationData, std::vector<std::uint8_t>(),
-                                clientName.get_full_name());
+    success &= ddop->add_device("SimpleImplement", "1.0.0", "001", "SMP1.0", localizationData,
+                                std::vector<std::uint8_t>(), clientName.get_full_name());
 
     //==========================================================================
     // ADD MAIN DEVICE ELEMENT (ID 1)
@@ -374,30 +331,8 @@ bool create_simple_ddop(std::shared_ptr<isobus::DeviceDescriptorObjectPool> ddop
         static_cast<std::uint8_t>(
             isobus::task_controller_object::DeviceProcessDataObject::PropertiesBit::MemberOfDefaultSet),
         static_cast<std::uint8_t>(
-            isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::TimeInterval),
+            isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
         static_cast<std::uint16_t>(DDOPObjectIDs::ImplementWorkingWidth));
-
-    // =========================================================================
-    // ADD HASHTAG SENSOR PROCESS DATA (ID 10)
-    // =========================================================================
-    // This process data object reports whether the device is working or not.
-    // The TC can request this value and we respond via callbacks.
-    //
-    // Parameters:
-    //   - designator:     "Hashtag Auth Result"
-    //   - ddi:            HashtagAuthResult (standard DDI from ISO 11783-11)
-    //   - presentation:   NULL_OBJECT_ID (no special formatting)
-    //   - properties:     MemberOfDefaultSet (TC will request this automatically)
-    //   - triggerMethods: OnChange (report when value changes)
-    //   - objectId:       10 (unique ID)
-    //
-    // AUTH RESULT VALUES:
-    //   0 = Not working / Off
-    //   1 = Working / On
-    success &= ddop->add_device_process_data("Hashtag DDI #1", DDI_AUTH_RESULT,
-                                             static_cast<std::uint16_t>(DDOPObjectIDs::RawPresentation),
-                                             static_cast<std::uint8_t>(3), static_cast<std::uint8_t>(9),
-                                             static_cast<std::uint16_t>(DDOPObjectIDs::HashtagAuthResult));
 
     //==========================================================================
     // ADD PRESENTATIONS
@@ -422,15 +357,6 @@ bool create_simple_ddop(std::shared_ptr<isobus::DeviceDescriptorObjectPool> ddop
     //   - objectId:   100
     success &= ddop->add_device_value_presentation("m^2", 0, 1.0f, 0,
                                                    static_cast<std::uint16_t>(DDOPObjectIDs::AreaPresentation));
-
-    // ADD RAW PRESENTATION (ID 102):
-    //   - unit:       "raw" (no formatting)
-    //   - offset:     0
-    //   - scale:      1.0
-    //   - decimals:   0
-    //   - objectId:   102
-    success &= ddop->add_device_value_presentation("raw", 0, 1.0f, 0,
-                                                   static_cast<std::uint16_t>(DDOPObjectIDs::RawPresentation));
 
     //==========================================================================
     // LINK CHILD OBJECTS TO PARENTS
@@ -465,22 +391,6 @@ bool create_simple_ddop(std::shared_ptr<isobus::DeviceDescriptorObjectPool> ddop
         // Link children to MainElement
         mainElement->add_reference_to_child_object(static_cast<std::uint16_t>(DDOPObjectIDs::DeviceActualWorkState));
 
-        // Link children to MainElement
-38448 .rw-rw-r--      1  465      4.1k bresilla 17 Dec  2025   -N devbox.json
-21639092 .rw-rw-r--      1  935      4.1k bresilla 16 Jan 16:21   -N hashtag.xml
-21660637 .rw-rw-r--      1  636      4.1k bresilla 20 Jan 13:53   -N hashtag_fromcode.xml
-21660599 .rw-rw-r--      1  188      4.1k bresilla 16 Jan 11:13   -N imgui.ini
-21638445 .rw-rw-r--      1 5.3k      8.2k bresilla 17 Dec  2025   -N Makefile
-21638446 .rw-rw-r--      1    0         0 bresilla 17 Dec  2025   -N README.md
-21660700 .rw-rw-r--      1  691      4.1k bresilla 23 Jan 12:25   -N tag_fromcode.xml
-21638465 .rw-rw-r--      1 6.8k      8.2k bresilla  5 Jan 15:47   -N xmake.lua
-
-═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════[ 1 ]══
-
- // ceol   bresilla ▓| 1 |                                                                                        |  main ?  tractor
-
-        mainElement->add_reference_to_child_object(static_cast<std::uint16_t>(DDOPObjectIDs::HashtagAuthResult));
-
         // Link children to Connector
         connector->add_reference_to_child_object(static_cast<std::uint16_t>(DDOPObjectIDs::ConnectorXOffset));
         connector->add_reference_to_child_object(static_cast<std::uint16_t>(DDOPObjectIDs::ConnectorYOffset));
@@ -507,7 +417,7 @@ int main() {
     // standard network interfaces (like can0, can1, etc.)
     //
     std::cout << "╔══════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║       ISOBUS TASK CONTROLLER CLIENT EXAMPLE                  ║\n";
+    std::cout << "║       ISOBUS TASK CONTROLLER CLIENT EXAMPLE                 ║\n";
     std::cout << "╚══════════════════════════════════════════════════════════════╝\n\n";
 
     std::cout << "[1/8] Initializing CAN interface...\n";
@@ -700,10 +610,6 @@ int main() {
         return -1;
     }
 
-    std::string filenameee = "hashtag_oroginal.xml";
-    const char *xml_export_filename = filenameee.c_str();
-    export_ddop_to_xml(ddop, xml_export_filename);
-
     std::cout << "✓ DDOP created with " << ddop->size() << " objects\n\n";
 
     //==========================================================================
@@ -725,53 +631,13 @@ int main() {
     std::cout << "[7/8] Setting up callbacks...\n";
 
     //--------------------------------------------------------------------------
-    // REQUEST VALUE CALLBACK - DATA REPORTER/READER
+    // REQUEST VALUE CALLBACK
     //--------------------------------------------------------------------------
     // CALLBACK SIGNATURE:
     //   bool callback(uint16_t elementNumber,    // Which element (0, 1, 2...)
     //                 uint16_t ddi,               // Which DDI (data type)
     //                 int32_t& outValue,          // Output: value to return
     //                 void* parentPointer)        // Optional context pointer
-    //
-    // PRACTICAL USAGE: This callback handles data REQUESTS FROM the Task Controller.
-    // Think of it as a dashboard or sensor display:
-    //   - TC asks: "What's your current working width?" → You respond: "3000mm"
-    //   - TC asks: "Are you currently working?" → You respond: current_work_state
-    //   - TC asks: "What's your section control state?" → You respond: section_control_state
-    //
-    // This is READ-ONLY - you simply report current sensor values or status.
-    // Common use cases: temperature sensors, position data, current speed, operational state.
-    //
-    // PARAMETERS EXPLAINED:
-    //   elementNumber: The device element being queried (from DDOP)
-    //                  Element 0 = MainDeviceElement
-    //                  Element 1 = Connector
-    //                  Element 2 = Implement
-    //
-    //   ddi: Data Description Index - defines what data is requested
-    //        Example DDIs:
-    //          0x00A1 = ActualWorkState (is device on/off?)
-    //          0x0046 = ActualWorkingWidth (how wide?)
-    //          0x0049 = SetpointWorkState (desired on/off state)
-    //
-    //   outValue: Reference where we store the requested value
-    //             Must be set before returning true
-    //
-    //   parentPointer: Optional pointer to context/class instance
-    //                  nullptr in this example (using lambda capture instead)
-    //
-    // RETURN VALUE:
-    //   true  = We handled this request, outValue is valid
-    //   false = We don't have this data, try next callback
-    //
-    // PRACTICAL USAGE: This callback handles data REQUESTS FROM the Task Controller.
-    // Think of it as a dashboard or sensor display:
-    //   - TC asks: "What's your current working width?" → You respond: "3000mm"
-    //   - TC asks: "Are you currently working?" → You respond: current_work_state
-    //   - TC asks: "What's your section control state?" → You respond: section_control_state
-    //
-    // This is READ-ONLY - you simply report current sensor values or status.
-    // Common use cases: temperature sensors, position data, current speed, operational state.
     //
     // PARAMETERS EXPLAINED:
     //   elementNumber: The device element being queried (from DDOP)
@@ -796,47 +662,70 @@ int main() {
     //   false = We don't have this data, try next callback
     //
     tc->add_request_value_callback(
-        [](std::uint16_t, std::uint16_t ddi, std::int32_t &outValue, void *) -> bool {
+        [](std::uint16_t elementNumber, std::uint16_t ddi, std::int32_t &outValue, void *parent) -> bool {
+            std::cout << "   [CALLBACK] TC requests value:\n";
+            std::cout << "              Element #" << elementNumber << ", DDI=0x" << std::hex << ddi << std::dec
+                      << "\n";
+
+            // Decode the DDI and respond appropriately
             switch (ddi) {
+            //------------------------------------------------------------------
+            // DDI 0x00A1: Actual Work State
+            //------------------------------------------------------------------
+            // TC is asking: "Are you currently working?"
+            //
+            // POSSIBLE VALUES:
+            //   0 = Not working / Disabled / Off
+            //   1 = Working / Enabled / On
+            //
+            // In a real implement, you'd check actual sensors/state here.
+            // For this example, we toggle between working and not working every 5 seconds.
+            //
             case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::ActualWorkState):
                 outValue = current_work_state.load();
+                std::cout << "              → Reporting: " << (outValue ? "Working (1)" : "Not Working (0)") << "\n";
                 return true;
+
+            //------------------------------------------------------------------
+            // DDI 0x0046: Actual Working Width
+            //------------------------------------------------------------------
+            // TC is asking: "How wide is your working area?"
+            //
+            // VALUE: Width in millimeters
+            //   3000 = 3 meters = 3000 mm
+            //
+            // In a real implement, this might come from:
+            //   - Configuration settings
+            //   - Boom fold sensors
+            //   - Section state calculations
+            //
             case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::ActualWorkingWidth):
-                outValue = 3000;
+                outValue = 3000; // 3000 mm = 3 meters
+                std::cout << "              → Reporting: 3000 mm (3 meters)\n";
                 return true;
-            case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::SectionControlState):
-                outValue = section_control_state.load();
-                return true;
-            case DDI_AUTH_RESULT:
-                // Report the current hashtag authentication result
-                // 0 = auth failed/invalid hashtag detected
-                // 1 = auth success/valid hashtag detected
-                outValue = hashtag_auth_result.load();
-                return true;
+
+            //------------------------------------------------------------------
+            // DEFAULT: Unknown DDI
+            //------------------------------------------------------------------
+            // We don't support this DDI, return false so TC knows we can't
+            // provide this data.
+            //
             default:
+                std::cout << "              → Not supported\n";
                 outValue = 0;
                 return false;
             }
         },
-        nullptr);
+        nullptr); // No parent pointer needed
 
     //--------------------------------------------------------------------------
-    // VALUE COMMAND CALLBACK - COMMAND EXECUTOR/ACTUATOR
+    // VALUE COMMAND CALLBACK
     //--------------------------------------------------------------------------
     // CALLBACK SIGNATURE:
     //   bool callback(uint16_t elementNumber,         // Which element
     //                 uint16_t ddi,                    // Which DDI (command type)
     //                 int32_t processVariableValue,    // Commanded value
     //                 void* parentPointer)             // Optional context
-    //
-    // PRACTICAL USAGE: This callback handles commands FROM the Task Controller.
-    // Think of it as actuators or control systems:
-    //   - TC commands: "Turn on!" → You execute: current_work_state = ON
-    //   - TC commands: "Set rate to 50%" → You execute: application_rate = 50
-    //   - TC commands: "Enable auto mode!" → You execute: is_auto_mode = true
-    //
-    // This is WRITE OPERATION - you change device state based on TC commands.
-    // Common use cases: turning sections on/off, setting application rates, changing operational modes.
     //
     // PARAMETERS EXPLAINED:
     //   elementNumber: Which element to command (0, 1, 2...)
@@ -858,21 +747,42 @@ int main() {
     //   false = Command rejected or not supported
     //
     tc->add_value_command_callback(
-        [](std::uint16_t, std::uint16_t ddi, std::int32_t processVariableValue, void *) -> bool {
+        [](std::uint16_t elementNumber, std::uint16_t ddi, std::int32_t processVariableValue, void *parent) -> bool {
+            std::cout << "   [CALLBACK] TC sends command:\n";
+            std::cout << "              Element #" << elementNumber << ", DDI=0x" << std::hex << ddi << std::dec
+                      << ", Value=" << processVariableValue << "\n";
+
+            // Decode the command DDI
             switch (ddi) {
+            //------------------------------------------------------------------
+            // DDI 0x0049: Setpoint Work State
+            //------------------------------------------------------------------
+            // TC is commanding: "Turn on/off"
+            //
+            // VALUES:
+            //   0 = Turn off / Disable
+            //   1 = Turn on / Enable
+            //
+            // In a real implement, you would:
+            //   - Activate/deactivate outputs
+            //   - Update internal state
+            //   - Confirm via actual work state
+            //
             case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::SetpointWorkState):
-                current_work_state.store(processVariableValue);
-                return true;
-            case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::SectionControlState):
-            case static_cast<std::uint16_t>(isobus::DataDescriptionIndex::PrescriptionControlState):
-                section_control_state.store(processVariableValue != 0 ? 1 : 0);
-                is_auto_mode.store(processVariableValue != 0);
-                return true;
+                std::cout << "              → TC commanded: " << (processVariableValue ? "TURN ON" : "TURN OFF")
+                          << "\n";
+                // TODO: Actually control your implement here!
+                return true; // Command accepted
+
+            //------------------------------------------------------------------
+            // DEFAULT: Unknown command
+            //------------------------------------------------------------------
             default:
-                return false;
+                std::cout << "              → Command not supported\n";
+                return false; // Command rejected
             }
         },
-        nullptr);
+        nullptr); // No parent pointer
 
     std::cout << "✓ Callbacks registered\n\n";
 
@@ -985,33 +895,35 @@ int main() {
     //   5. Command handling
     //   6. All managed automatically by state machine!
     //
-    int counter = 0;
-    auto last_toggle_time = std::chrono::steady_clock::now();
-    const auto toggle_interval = std::chrono::seconds(5); // Toggle work state every 5 seconds
-
     while (running) {
-        auto now = std::chrono::steady_clock::now();
+        // Print status every 10 seconds
+        static int counter = 0;
+        if (counter % 10 == 0) {
+            std::cout << "────────────────────────────────────────────────────────\n";
+            std::cout << "[Status] TC Client Running\n";
 
-        // Toggle work state every 5 seconds (independent of send frequency)
-        if (now - last_toggle_time >= toggle_interval) {
-            current_work_state.store(1 - current_work_state.load());
-            last_toggle_time = now;
+            // Check if we found a TC server
+            if (tc_partner->get_address_valid()) {
+                std::cout << "         ✓ TC Server FOUND at address 0x" << std::hex
+                          << static_cast<int>(tc_partner->get_address()) << std::dec << "\n";
+                std::cout << "         ✓ Communication active\n";
+            } else {
+                std::cout << "         ⏳ Waiting for TC Server to appear...\n";
+                std::cout << "         (Make sure TC is on the bus and powered)\n";
+            }
+            std::cout << "────────────────────────────────────────────────────────\n\n";
         }
-
-        std::cout << "\r  Work State: [" << (current_work_state.load() ? " ON " : "OFF ") << "]  " << std::flush;
-
-        // echo("WORK STATE
-        echo::format::String pretty_string;
-        if (current_work_state.load()) {
-            pretty_string = echo::format::String(" [ ON  ] ").bg(0, 255, 0).black().bold();
-        } else {
-            pretty_string = echo::format::String(" [ OFF ] ").bg(255, 0, 0).black().bold();
-        }
-
-        echo("WORK STATE ", pretty_string).inplace();
-
         counter++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(send_frequency_ms.load()));
+
+        // Toggle work state every 5 seconds
+        if (counter % 5 == 0) {
+            current_work_state.store(1 - current_work_state.load());
+            std::cout << "🔄 [AUTO-TOGGLE] Work state changed to: "
+                      << (current_work_state.load() ? "WORKING" : "NOT WORKING") << "\n\n";
+        }
+
+        // Sleep for 1 second
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     //==========================================================================
@@ -1022,11 +934,9 @@ int main() {
     //   2. Stop CAN hardware interface
     //   3. Release resources
     //
-    std::cout << "\n";
-    std::cout << "╔══════════════════════════════════════════════════════════════╗\n";
+    std::cout << "\n╔══════════════════════════════════════════════════════════════╗\n";
     std::cout << "║                    SHUTTING DOWN                             ║\n";
-    std::cout << "╚══════════════════════════════════════════════════════════════╝\n";
-    std::cout << "\n";
+    std::cout << "╚══════════════════════════════════════════════════════════════╝\n\n";
 
     std::cout << "Terminating TC client...\n";
     tc->terminate(); // Stop TC client threads and disconnect
