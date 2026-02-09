@@ -63,7 +63,7 @@ class SectionControlImplementSimulator {
         PrescriptionControlState,
         ActualCulturalPractice,
         TargetRate,
-        ActualRate,
+        //ActualRate,
         AreaPresentation,
         TimePresentation,
         ShortWidthPresentation,
@@ -633,7 +633,7 @@ int main(int argc, char **argv) {
                 auth_status = 1;
             }
         }
-        TestTCClient->on_value_changed_trigger(0, 65432);
+        TestTCClient->on_value_changed_trigger(0, 65432); // Trigger for on-change update at DeviceElement A, for DDI B (65432)
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
