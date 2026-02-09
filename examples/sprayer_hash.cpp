@@ -46,7 +46,10 @@ class SectionControlImplementSimulator {
         ActualCondensedWorkingState1To16,
         TimePresentation,
         ShortWidthPresentation,
-        HashtagParameter
+        HashtagParameter,
+        HashtagSystem,
+        HashtagService,
+        HashtagStatus
     };
 
     explicit SectionControlImplementSimulator(std::uint8_t numberOfSections)
@@ -119,13 +122,29 @@ class SectionControlImplementSimulator {
                 isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
             static_cast<std::uint16_t>(ImplementDDOPObjectIDs::DeviceActualWorkState));
         retVal &= poolToPopulate->add_device_process_data(
-            "Hashtag", static_cast<std::uint16_t>(65432),
+            "HashtagSystem", static_cast<std::uint16_t>(65432),
             static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ShortWidthPresentation),
             static_cast<std::uint8_t>(
                 isobus::task_controller_object::DeviceProcessDataObject::PropertiesBit::MemberOfDefaultSet),
             static_cast<std::uint8_t>(
                 isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
-            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagParameter));
+            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagSystem));
+        retVal &= poolToPopulate->add_device_process_data(
+            "HashtagService", static_cast<std::uint16_t>(65433),
+            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ShortWidthPresentation),
+            static_cast<std::uint8_t>(
+                isobus::task_controller_object::DeviceProcessDataObject::PropertiesBit::MemberOfDefaultSet),
+            static_cast<std::uint8_t>(
+                isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
+            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagService));
+        retVal &= poolToPopulate->add_device_process_data(
+            "HashtagStatus", static_cast<std::uint16_t>(65434),
+            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ShortWidthPresentation),
+            static_cast<std::uint8_t>(
+                isobus::task_controller_object::DeviceProcessDataObject::PropertiesBit::MemberOfDefaultSet),
+            static_cast<std::uint8_t>(
+                isobus::task_controller_object::DeviceProcessDataObject::AvailableTriggerMethods::OnChange),
+            static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagStatus));
         retVal &= poolToPopulate->add_device_process_data(
             "Request Default PD", static_cast<std::uint16_t>(isobus::DataDescriptionIndex::RequestDefaultProcessData),
             isobus::NULL_OBJECT_ID, 0,
@@ -178,12 +197,17 @@ class SectionControlImplementSimulator {
             auto connector = std::static_pointer_cast<isobus::task_controller_object::DeviceElementObject>(
                 poolToPopulate->get_object_by_id(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::Connector)));
             
+
             sprayer->add_reference_to_child_object(
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::DeviceActualWorkState));
             sprayer->add_reference_to_child_object(
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::RequestDefaultProcessData));
             sprayer->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagParameter));
+                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagSystem));
+            sprayer->add_reference_to_child_object(
+                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagService));
+            sprayer->add_reference_to_child_object(
+                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::HashtagStatus));
 
             connector->add_reference_to_child_object(
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ConnectorXOffset));
