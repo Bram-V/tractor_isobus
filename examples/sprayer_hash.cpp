@@ -43,26 +43,7 @@ class SectionControlImplementSimulator {
         AreaTotal,
         SetpointWorkState,
         SectionControlState,
-        BoomXOffset,
-        BoomYOffset,
-        BoomZOffset,
-        Section1,
-        SectionMax = Section1 + (MAX_NUMBER_SECTIONS_SUPPORTED - 1),
-        Section1XOffset,
-        SectionXOffsetMax = Section1XOffset + (MAX_NUMBER_SECTIONS_SUPPORTED - 1),
-        Section1YOffset,
-        SectionYOffsetMax = Section1YOffset + (MAX_NUMBER_SECTIONS_SUPPORTED - 1),
-        Section1Width,
-        SectionWidthMax = Section1Width + (MAX_NUMBER_SECTIONS_SUPPORTED - 1),
         ActualCondensedWorkingState1To16,
-        SetpointCondensedWorkingState1To16,
-        LiquidProduct,
-        TankCapacity,
-        TankVolume,
-        LifetimeApplicationVolumeTotal,
-        PrescriptionControlState,
-        ActualCulturalPractice,
-        TargetRate,
         TimePresentation,
         ShortWidthPresentation,
         HashtagParameter
@@ -196,16 +177,9 @@ class SectionControlImplementSimulator {
                     static_cast<std::uint16_t>(ImplementDDOPObjectIDs::MainDeviceElement)));
             auto connector = std::static_pointer_cast<isobus::task_controller_object::DeviceElementObject>(
                 poolToPopulate->get_object_by_id(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::Connector)));
-            auto boom = std::static_pointer_cast<isobus::task_controller_object::DeviceElementObject>(
-                poolToPopulate->get_object_by_id(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::SprayBoom)));
-            auto product = std::static_pointer_cast<isobus::task_controller_object::DeviceElementObject>(
-                poolToPopulate->get_object_by_id(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::LiquidProduct)));
-
+            
             sprayer->add_reference_to_child_object(
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::DeviceActualWorkState));
-            sprayer->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::SetpointWorkState));
-            sprayer->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::DeviceTotalTime));
             sprayer->add_reference_to_child_object(
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::RequestDefaultProcessData));
             sprayer->add_reference_to_child_object(
@@ -217,28 +191,6 @@ class SectionControlImplementSimulator {
                 static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ConnectorYOffset));
             connector->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ConnectorType));
 
-            boom->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::BoomXOffset));
-            boom->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::BoomYOffset));
-            boom->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::BoomZOffset));
-            boom->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ActualWorkingWidth));
-            boom->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::SectionControlState));
-            boom->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::AreaTotal));
-            boom->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ActualCondensedWorkingState1To16));
-            boom->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::SetpointCondensedWorkingState1To16));
-
-            product->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::TankCapacity));
-            product->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::TankVolume));
-            product->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::LifetimeApplicationVolumeTotal));
-            product->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::PrescriptionControlState));
-            product->add_reference_to_child_object(
-                static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ActualCulturalPractice));
-            product->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::TargetRate));
-            product->add_reference_to_child_object(static_cast<std::uint16_t>(ImplementDDOPObjectIDs::ActualRate));
         }
         return retVal;
     } // End of create_ddop
